@@ -1,16 +1,15 @@
 class SpreadsheetORM {
-  constructor(sheetName, id = null) {
+  constructor(sheetName, child) {
     this.sheetName = sheetName;
     this.ss = SpreadsheetApp.getActiveSpreadsheet();
     this.sheet = this.ss.getSheetByName(sheetName);
-    this.ID = id;
+    this.child = child;
   }
 
-  save(record) {
+  save() {
     const { rows, headers, idIndex } = this._dataAccess();
 
-    // recordを引数に取るように変更（継承できないので，子側のインスタンスを親側で取得できない）
-    // const record = this.property_to_object();
+    const record = this.property_to_object();
     if (record.ID !== null) {
       this.update(record);
       return;
@@ -24,6 +23,10 @@ class SpreadsheetORM {
     }
 
     record.ID = this.get_id();
+
+    // varbose
+    // console.log("headers: ", headers);
+    // console.log("keys: ", Object.keys(record));
 
     if (headers.length !== Object.keys(record).length) {
       console.log(
@@ -46,11 +49,14 @@ class SpreadsheetORM {
     for (const row of rows) {
       const record = this._rowToObject(headers, row);
       if (record[key] === value) {
-        this.ID = record.ID;
-        return new SpreadsheetORM(this.sheetName, this.ID);
+        // this.childのプロパティにrecordの同名のプロパティをコピー
+        for (const key of Object.keys(record)) {
+          this.child[key] = record[key];
+        }
+        return this.child;
       }
     }
-    return new SpreadsheetORM(this.sheetName); // 見つからなかった場合はnullを返す
+    return null; // 見つからなかった場合はnullを返す
   }
 
   findByHash(hash) {
@@ -59,15 +65,17 @@ class SpreadsheetORM {
     for (const row of rows) {
       const record = this._rowToObject(headers, row);
       let isMatch = true;
-      for (const [key, value] of Object.entries(json)) {
+      for (const [key, value] of Object.entries(hash)) {
         if (record[key] != value) {
           isMatch = false;
           break;
         }
       }
       if (isMatch) {
-        this.ID = record.ID;
-        return new SpreadsheetORM(this.sheetName, this.ID);
+        for (const key of Object.keys(record)) {
+          this.child[key] = record[key];
+        }
+        return this.child;
       }
     }
     return null; // 見つからなかった場合はnullを返す
@@ -84,7 +92,11 @@ class SpreadsheetORM {
 
       const record = this._rowToObject(headers, row);
       if (record[key] === value) {
-        matchingRecords.push(new SpreadsheetORM(this.sheetName, record.ID));
+        for (const key of Object.keys(record)) {
+          this.child[key] = record[key];
+        }
+        let copy = { ...this.child }; // オブジェクトのコピーを作成
+        matchingRecords.push(copy);
       }
     }
     const record_IDs = [];
@@ -128,18 +140,21 @@ class SpreadsheetORM {
     );
 
     if (duplicateRow) {
-      const duplicateId = duplicateRow[idIndex]; // 重複行のIDを取得
-      return new SpreadsheetORM(this.sheetName, duplicateId); // 重複行のIDを返す
+      for (const key of Object.keys(duplicateRow)) {
+        this.child[key] = duplicateRow[key];
+      }
+      return this.child; // 重複行のIDを返す
     } else {
       return null; // 重複行が見つからなかった場合はnullを返す
     }
   }
 
+  // findの中で，recordをコピーしているので不要？？
   get_records() {
     const { rows, headers, idIndex } = this._dataAccess();
     for (const row of rows) {
       const record = this._rowToObject(headers, row);
-      if (record.ID === this.ID) {
+      if (record.ID === this.child.ID) {
         return record;
       }
     }
@@ -151,7 +166,7 @@ class SpreadsheetORM {
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
-      if (row[idIndex] == this.ID) {
+      if (row[idIndex] == this.child.ID) {
         const startRow = i + 2; // 開始行（i行目のデータを指すため、i + 1を使用）
         const startColumn = 1; // 開始列（スプレッドシートの最初の列を指す）
         const numRows = 1; // 取得する行数（1行だけ取得する場合）
@@ -176,7 +191,7 @@ class SpreadsheetORM {
       }
     }
 
-    throw new Error("Record not found with ID: " + this.ID);
+    throw new Error("Record not found with ID: " + this.child.ID);
   }
 
   delete() {
@@ -184,13 +199,13 @@ class SpreadsheetORM {
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
-      if (row[idIndex] == this.ID) {
+      if (row[idIndex] == this.child.ID) {
         this.sheet.deleteRow(i + 2);
         return; // 削除が完了したら終了
       }
     }
 
-    throw new Error("Record not found with ID: " + this.ID);
+    throw new Error("Record not found with ID: " + this.child.ID);
   }
 
   get_all() {
@@ -248,93 +263,11 @@ class SpreadsheetORM {
 
   property_to_object() {
     const obj = {};
-    const keys = Object.keys(this);
+    const keys = Object.keys(this.child);
     for (const key of keys) {
-      obj[key] = this[key];
+      obj[key] = this.child[key];
     }
-    delete obj["sheetName"];
-    delete obj["ss"];
-    delete obj["sheet"];
+    delete obj["parent"];
     return obj;
   }
-}
-
-function TestSpreadsheetORMSave() {
-  const orm = new SpreadsheetORM("Test");
-  orm.Name = "Satoshi";
-  orm.Age = 35;
-  orm.save();
-}
-
-function TestSpreadsheetORMFindBy() {
-  const orm = new SpreadsheetORM("Test");
-  const found = orm.findBy("Name", "Alice");
-  Logger.log(found);
-}
-
-function TestSpreadsheetORMFindAllBy() {
-  const orm = new SpreadsheetORM("Test");
-  const found = orm.findAllBy("Name", "Alice", 3);
-  Logger.log(found);
-}
-
-function TestSpreadsheetORMFind() {
-  const orm = new SpreadsheetORM("Test");
-  const record = {
-    Name: "Alice",
-    Age: 25,
-  };
-  const found = orm.find(record);
-  Logger.log(found);
-}
-
-function TestSpreadsheetORMGetRecords() {
-  const orm = new SpreadsheetORM("Test");
-  const record = orm.findBy("Name", "Alice").get_records();
-  Logger.log(record);
-}
-
-function TestSpreadsheetORMUpdate() {
-  const orm = new SpreadsheetORM("Test");
-  orm.findBy("Name", "Alice").update({ Name: "Bob", Age: 25 });
-  orm.findBy("Name", "Alice").update({ Age: 100 });
-}
-
-function TestSpreadsheetORMDelete() {
-  const orm = new SpreadsheetORM("Test");
-  orm.findBy("Name", "Bob").delete();
-}
-
-function TestSpreadsheetORMGetAll() {
-  const orm = new SpreadsheetORM("Test");
-  const records = orm.get_all();
-  Logger.log(records);
-}
-
-// プライベートメソッドのテスト
-function TestSpreadsheetORMRowToObject() {
-  const orm = new SpreadsheetORM("Test");
-  const headers = ["Name", "Age"];
-  const row = ["Bob", 25];
-  const obj = orm._rowToObject(headers, row);
-  Logger.log(obj);
-}
-
-function TestSpreadsheetORMGetId() {
-  const orm = new SpreadsheetORM("Test");
-  const id = orm.get_id();
-  Logger.log(id);
-}
-
-function TestSpreadsheetORMPropertyToObject() {
-  const orm = new SpreadsheetORM("Test");
-  orm.ID = 1;
-  const obj = orm.property_to_object();
-  Logger.log(obj);
-}
-
-function test_findByHash() {
-  const orm = new SpreadsheetORM("Test");
-  const found = orm.findByHash({ Name: "Alice", Age: 100 });
-  Logger.log(found);
 }
