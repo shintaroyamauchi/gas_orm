@@ -6,17 +6,18 @@ class SpreadsheetORM {
     this.ID = id;
   }
 
-  save() {
-    const { rows, headers, idIndex } = this.dataAccess();
+  save(record) {
+    const { rows, headers, idIndex } = this._dataAccess();
 
-    const record = this.property_to_object();
+    // recordを引数に取るように変更（継承できないので，子側のインスタンスを親側で取得できない）
+    // const record = this.property_to_object();
     if (record.ID !== null) {
       this.update(record);
       return;
     }
 
     // 重複をチェック
-    const duplicateId = this.find_id(record);
+    const duplicateId = this._find_id(record);
     if (duplicateId !== null) {
       console.log(`A duplicate row exists with ID: ${duplicateId}.`);
       return null;
@@ -26,7 +27,7 @@ class SpreadsheetORM {
 
     if (headers.length !== Object.keys(record).length) {
       console.log(
-        "The number of columns does not match the number of properties.",
+        "The number of columns does not match the number of properties."
       );
       return null;
     }
@@ -40,10 +41,10 @@ class SpreadsheetORM {
   }
 
   findBy(key, value) {
-    const { rows, headers, idIndex } = this.dataAccess();
+    const { rows, headers, idIndex } = this._dataAccess();
 
     for (const row of rows) {
-      const record = this.rowToObject(headers, row);
+      const record = this._rowToObject(headers, row);
       if (record[key] === value) {
         this.ID = record.ID;
         return new SpreadsheetORM(this.sheetName, this.ID);
@@ -52,11 +53,11 @@ class SpreadsheetORM {
     return new SpreadsheetORM(this.sheetName); // 見つからなかった場合はnullを返す
   }
 
-  findByHash(json) {
-    const { rows, headers, idIndex } = this.dataAccess();
-  
+  findByHash(hash) {
+    const { rows, headers, idIndex } = this._dataAccess();
+
     for (const row of rows) {
-      const record = this.rowToObject(headers, row);
+      const record = this._rowToObject(headers, row);
       let isMatch = true;
       for (const [key, value] of Object.entries(json)) {
         if (record[key] != value) {
@@ -73,7 +74,7 @@ class SpreadsheetORM {
   }
 
   findAllBy(key, value, limit = null) {
-    const { rows, headers } = this.dataAccess();
+    const { rows, headers } = this._dataAccess();
     const matchingRecords = [];
 
     for (const row of rows) {
@@ -81,7 +82,7 @@ class SpreadsheetORM {
         break; // 指定された件数に達したらループを抜ける
       }
 
-      const record = this.rowToObject(headers, row);
+      const record = this._rowToObject(headers, row);
       if (record[key] === value) {
         matchingRecords.push(new SpreadsheetORM(this.sheetName, record.ID));
       }
@@ -94,8 +95,8 @@ class SpreadsheetORM {
     return record_IDs; // 一致するレコードの配列を返す
   }
 
-  find_id(record) {
-    const { rows, headers, idIndex } = this.dataAccess();
+  _find_id(record) {
+    const { rows, headers, idIndex } = this._dataAccess();
 
     const duplicateRow = rows.find((row) =>
       headers.every((header, index) => {
@@ -103,7 +104,7 @@ class SpreadsheetORM {
         if (index === idIndex) return true;
         // ID列以外で値を比較
         return row[index] === record[header];
-      }),
+      })
     );
 
     if (duplicateRow) {
@@ -115,7 +116,7 @@ class SpreadsheetORM {
   }
 
   find(record) {
-    const { rows, headers, idIndex } = this.dataAccess();
+    const { rows, headers, idIndex } = this._dataAccess();
 
     const duplicateRow = rows.find((row) =>
       headers.every((header, index) => {
@@ -123,7 +124,7 @@ class SpreadsheetORM {
         if (index === idIndex) return true;
         // ID列以外で値を比較
         return row[index] === record[header];
-      }),
+      })
     );
 
     if (duplicateRow) {
@@ -135,9 +136,9 @@ class SpreadsheetORM {
   }
 
   get_records() {
-    const { rows, headers, idIndex } = this.dataAccess();
+    const { rows, headers, idIndex } = this._dataAccess();
     for (const row of rows) {
-      const record = this.rowToObject(headers, row);
+      const record = this._rowToObject(headers, row);
       if (record.ID === this.ID) {
         return record;
       }
@@ -146,7 +147,7 @@ class SpreadsheetORM {
   }
 
   update(newData) {
-    const { rows, headers, idIndex } = this.dataAccess();
+    const { rows, headers, idIndex } = this._dataAccess();
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
@@ -159,7 +160,7 @@ class SpreadsheetORM {
           startRow,
           startColumn,
           numRows,
-          numColumns,
+          numColumns
         );
         const firstRowOfRange = 0;
         const updatedRow = range.getValues()[firstRowOfRange];
@@ -179,7 +180,7 @@ class SpreadsheetORM {
   }
 
   delete() {
-    const { rows, headers, idIndex } = this.dataAccess();
+    const { rows, headers, idIndex } = this._dataAccess();
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
@@ -193,16 +194,16 @@ class SpreadsheetORM {
   }
 
   get_all() {
-    const { rows, headers, idIndex } = this.dataAccess();
+    const { rows, headers, idIndex } = this._dataAccess();
     const records = [];
     for (const row of rows) {
-      const record = this.rowToObject(headers, row);
+      const record = this._rowToObject(headers, row);
       records.push(record);
     }
     return records;
   }
 
-  dataAccess() {
+  _dataAccess() {
     const data = this.sheet.getDataRange().getValues();
     const header_index = 0;
     const headers = data[header_index];
@@ -214,7 +215,7 @@ class SpreadsheetORM {
     return { rows, headers, idIndex };
   }
 
-  rowToObject(headers, row) {
+  _rowToObject(headers, row) {
     const obj = {};
     headers.forEach((header, index) => {
       obj[header] = row[index];
@@ -263,7 +264,6 @@ function TestSpreadsheetORMSave() {
   orm.Name = "Satoshi";
   orm.Age = 35;
   orm.save();
-  orm.save();
 }
 
 function TestSpreadsheetORMFindBy() {
@@ -311,11 +311,12 @@ function TestSpreadsheetORMGetAll() {
   Logger.log(records);
 }
 
+// プライベートメソッドのテスト
 function TestSpreadsheetORMRowToObject() {
   const orm = new SpreadsheetORM("Test");
   const headers = ["Name", "Age"];
   const row = ["Bob", 25];
-  const obj = orm.rowToObject(headers, row);
+  const obj = orm._rowToObject(headers, row);
   Logger.log(obj);
 }
 

@@ -1,3 +1,3 @@
-function SpreadsheetORMFactory() {
-  return new SpreadsheetORM();
+function createSpreadSheetORM(sheetName, ID = null) {
+  return new SpreadsheetORM(sheetName, ID);
 }
