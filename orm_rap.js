@@ -1,7 +1,7 @@
 class SpreadsheetORMRap {
   constructor(sheetName) {
     // GASライブラリとして読み込むときは，以下のコメントアウトを外す
-    // this.orm = gas_orm.createSpreadSheetORM(sheetName, this);
+    // this.parent = gas_orm.createSpreadSheetORM(sheetName, this);
 
     // 単体でテストするときは，以下のコメントアウトを外す
     this.parent = createSpreadSheetORM(sheetName, this);
