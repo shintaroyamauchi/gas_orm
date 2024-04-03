@@ -198,3 +198,15 @@ function TestSpreadsheetORMRapGetId() {
   const id = rap.get_id();
   console.log("New id: ", id, "Expected: 3");
 }
+
+// スプレッドシートが勝手に変換するので，文字列と数値を比較してしまう
+function TestDuplicateSave() {
+  console.log("Test Duplicate Save");
+  const rap = new SpreadsheetORMRap("Test");
+  rap.name = "Test";
+  rap.age = "20";
+  rap.save();
+  rap.name = "Test";
+  rap.age = "20";
+  rap.save();
+}

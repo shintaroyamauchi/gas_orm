@@ -113,9 +113,9 @@ class SpreadsheetORM {
     const duplicateRow = rows.find((row) =>
       headers.every((header, index) => {
         // ID列を比較から除外
-        if (index === idIndex) return true;
+        if (index == idIndex) return true;
         // ID列以外で値を比較
-        return row[index] === record[header];
+        return row[index] == record[header];
       })
     );
 
